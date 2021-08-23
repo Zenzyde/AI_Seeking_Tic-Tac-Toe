@@ -2,20 +2,61 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using System;
 
-public class NewBoard : MonoBehaviour
+public class Board : MonoBehaviour
 {
 	[SerializeField] private ClickDetector detector;
 	[SerializeField] private MarkPlacer markPlacer;
 	[SerializeField] private int columns, rows, minToWin, maxDepth;
 	[SerializeField] private float offset;
-	[SerializeField] private bool AIFirst, dropMode;
+	[SerializeField] private bool AIFirst;
 	[SerializeField] private Text actionText;
 
 	private List<ClickDetector> detectors = new List<ClickDetector>();
 	private int lastPieceIndex = 0;
 	private ClickDetector[,] twoDBoard;
 	private bool gameOver, printed, restarted;
+
+	public void SetRows(InputField field)
+	{
+		rows = Convert.ToInt32(field.text);
+		rows = Mathf.Abs(rows);
+		if (rows < 3)
+			rows = 3;
+	}
+	public void SetColumns(InputField field)
+	{
+		columns = Convert.ToInt32(field.text);
+		columns = Mathf.Abs(columns);
+		if (columns < 3)
+			columns = 3;
+	}
+	public void SetMinToWIn(InputField field)
+	{
+		minToWin = Convert.ToInt32(field.text);
+		minToWin = Mathf.Abs(minToWin);
+		if (minToWin < 3)
+			minToWin = 3;
+		if (minToWin > columns && minToWin > rows)
+		{
+			minToWin = Mathf.Max(columns, rows);
+		}
+	}
+	public void SetMaxAIDepth(InputField field)
+	{
+		maxDepth = Convert.ToInt32(field.text);
+		maxDepth = Mathf.Abs(maxDepth);
+	}
+	public void SetAiFirst(Toggle toggle) => AIFirst = toggle.isOn;
+	public void Restart()
+	{
+		RebuildBoard();
+		restarted = true;
+		gameOver = false;
+		printed = false;
+	}
+	public void Quit() => Application.Quit();
 
 	void OnValidate()
 	{
@@ -30,6 +71,10 @@ public class NewBoard : MonoBehaviour
 		SetLiveBoard();
 		Setup2DBoard();
 		SetNoAction();
+		if (AIFirst)
+			SetText("PLAYER TURN");
+		else
+			SetText("AI TURN");
 		StartCoroutine(TextFade());
 	}
 
@@ -51,11 +96,11 @@ public class NewBoard : MonoBehaviour
 			printed = true;
 		}
 
-		if (Input.GetKeyDown(KeyCode.Space) && !restarted && gameOver)
-		{
-			RebuildBoard();
-			restarted = true;
-		}
+		// if (Input.GetKeyDown(KeyCode.Space) && !restarted && gameOver)
+		// {
+		// 	RebuildBoard();
+		// 	restarted = true;
+		// }
 	}
 
 	IEnumerator TextFade()
@@ -65,14 +110,14 @@ public class NewBoard : MonoBehaviour
 			while (actionText.color.a > 0.0f)
 			{
 				Color fade = actionText.color;
-				fade.a -= 0.1f;
+				fade.a -= 0.5f * Time.deltaTime;
 				actionText.color = fade;
 				yield return null;
 			}
 			while (actionText.color.a < 1.0f)
 			{
 				Color fade = actionText.color;
-				fade.a += 0.1f;
+				fade.a += 0.5f * Time.deltaTime;
 				actionText.color = fade;
 				yield return null;
 			}
@@ -99,8 +144,7 @@ public class NewBoard : MonoBehaviour
 		{
 			for (int j = 0; j < columns; j++)
 			{
-				detectors.Add(Instantiate(detector, startPos//(Vector2)detector.transform.position
-					+ new Vector2(j * offset, -i * offset), Quaternion.identity));
+				detectors.Add(Instantiate(detector, startPos + new Vector2(j * offset, -i * offset), Quaternion.identity));
 				detectors[detectors.Count - 1].SetIntegers(i, j, index);
 				index++;
 			}
@@ -129,13 +173,13 @@ public class NewBoard : MonoBehaviour
 			SetText("PLAYER TURN");
 	}
 
-    public ClickDetector[] GetBoard()
-    {
+	public ClickDetector[] GetBoard()
+	{
 		return detectors.ToArray();
 	}
 
-    public List<ClickDetector> GetAvailableMoves()
-    {
+	public List<ClickDetector> GetAvailableMoves()
+	{
 		List<ClickDetector> available = new List<ClickDetector>();
 		for (int i = 0; i < detectors.Count; i++)
 		{
@@ -145,17 +189,15 @@ public class NewBoard : MonoBehaviour
 			}
 		}
 		return available;
-    }
+	}
 
-    public void DoMove()
-    {
-		if (GetAvailableMoves().Count == 0 ||
-			CheckWinConditionExtended())
+	public void DoMove()
+	{
+		if (GetAvailableMoves().Count == 0 || CheckWinConditionExtended())
 			return;
-		
+
 		SetText("AI THINKING");
-		int move = dropMode ? NewMiniMaxAI.AIMoveDrop(this, maxDepth) :
-			NewMiniMaxAI.AIMove(this, maxDepth);
+		int move = move = MiniMaxAI.AIMove(this, maxDepth);
 		SetText("PLAYER TURN");
 
 		markPlacer.PlaceMarker(move, false);
@@ -172,11 +214,6 @@ public class NewBoard : MonoBehaviour
 		markPlacer.PlaceMarker(detectors[index].GetPiece().BOARDINDEX, true);
 		detectors[index].GetPiece().SetTakenByPlayer();
 		SetLastPieceIndex(index);
-	}
-
-	public bool DoDrop()
-	{
-		return dropMode;
 	}
 
 	public float GetOffset()
@@ -198,18 +235,18 @@ public class NewBoard : MonoBehaviour
 		}
 	}
 
-    public ClickDetector[,] Get2DBoard()
-    {
+	public ClickDetector[,] Get2DBoard()
+	{
 		return twoDBoard;
 	}
 
-    public int GetLastPieceIndex()
-    {
+	public int GetLastPieceIndex()
+	{
 		return lastPieceIndex;
 	}
 
-    public void SetLastPieceIndex(int index)
-    {
+	public void SetLastPieceIndex(int index)
+	{
 		lastPieceIndex = index;
 	}
 
@@ -228,12 +265,9 @@ public class NewBoard : MonoBehaviour
 		gameOver = true;
 		restarted = false;
 		if (GetAvailableMoves().Count == 0)
-			SetText("NO ONE WINS, TIE! \nClick Space To Restart");
+			SetText("NO ONE WINS, TIE!");
 		else
-			SetText(
-				GetBoard()[lastPieceIndex].GetPiece().IsTakenByAI() ?
-					"AI WINS! \nClick Space To Restart" :
-					"PLAYER WINS \nClick Space To Restart");
+			SetText(GetBoard()[lastPieceIndex].GetPiece().IsTakenByAI() ? "AI WINS!" : "PLAYER WINS!");
 	}
 
 	public bool IsGameOver()
@@ -247,14 +281,14 @@ public class NewBoard : MonoBehaviour
 		for (int i = 0; i < 3; i++)
 		{
 			if ((board[i, 0].GetPiece().IsTakenByAI() && board[i, 1].GetPiece().IsTakenByAI() &&
-            board[i, 2].GetPiece().IsTakenByAI()) ||
-            (board[i, 0].GetPiece().IsTakenByPlayer() && board[i, 1].GetPiece().IsTakenByPlayer() &&
+			board[i, 2].GetPiece().IsTakenByAI()) ||
+			(board[i, 0].GetPiece().IsTakenByPlayer() && board[i, 1].GetPiece().IsTakenByPlayer() &&
 			board[i, 2].GetPiece().IsTakenByPlayer()))
 			{
 				return true; //win on horizontal
 			}
 			if (board[0, i].GetPiece().IsTakenByAI() && board[1, i].GetPiece().IsTakenByAI() &&
-            board[2, i].GetPiece().IsTakenByAI() ||
+			board[2, i].GetPiece().IsTakenByAI() ||
 			(board[0, i].GetPiece().IsTakenByPlayer() && board[1, i].GetPiece().IsTakenByPlayer() &&
 			board[2, i].GetPiece().IsTakenByPlayer()))
 			{
@@ -264,14 +298,14 @@ public class NewBoard : MonoBehaviour
 
 		//diagonal win
 		if ((board[0, 0].GetPiece().IsTakenByAI() && board[1, 1].GetPiece().IsTakenByAI() &&
-        board[2, 2].GetPiece().IsTakenByAI()) ||
+		board[2, 2].GetPiece().IsTakenByAI()) ||
 			(board[0, 0].GetPiece().IsTakenByPlayer() && board[1, 1].GetPiece().IsTakenByPlayer() &&
 		board[2, 2].GetPiece().IsTakenByPlayer()))
 		{
 			return true;
 		}
 		if (board[2, 0].GetPiece().IsTakenByAI() && board[1, 1].GetPiece().IsTakenByAI() &&
-        board[0, 2].GetPiece().IsTakenByAI() ||
+		board[0, 2].GetPiece().IsTakenByAI() ||
 			(board[2, 0].GetPiece().IsTakenByPlayer() && board[1, 1].GetPiece().IsTakenByPlayer() &&
 		board[0, 2].GetPiece().IsTakenByPlayer()))
 		{
@@ -280,8 +314,8 @@ public class NewBoard : MonoBehaviour
 		return false;
 	}
 
-    public bool CheckWinConditionExtended()
-    {
+	public bool CheckWinConditionExtended()
+	{
 		if (GetBoardSize()[0] == 3 && GetBoardSize()[1] == 3 && minToWin == 3)
 			return CheckWinCondition();
 		ClickDetector[,] board = Get2DBoard();
@@ -459,92 +493,8 @@ public class NewBoard : MonoBehaviour
 				}
 			}
 		}
-
-		// for (int i = 1; i < minToWin; i++)
-		// {
-		// 	//Check vertically
-
-		// 	//Check down AI
-		// 	if (piece.ROW + i < rows && board[piece.ROW + i, piece.COLUMN].GetPiece().IsTakenByAI())
-		// 		totalVerticalAI++;
-		// 	//Check down Player
-		// 	if (piece.ROW + i < rows && board[piece.ROW + i, piece.COLUMN].GetPiece().IsTakenByPlayer())
-		// 		totalVerticalPlayer++;
-		// 	//Check up AI
-		// 	if (piece.ROW - i >= 0 && board[piece.ROW - i, piece.COLUMN].GetPiece().IsTakenByAI())
-		// 		totalVerticalAI++;
-		// 	//Check up Player
-		// 	if (piece.ROW - i >= 0 && board[piece.ROW - i, piece.COLUMN].GetPiece().IsTakenByPlayer())
-		// 		totalVerticalPlayer++;
-
-		// 	//Check horizontally
-
-		// 	//Check right AI
-		// 	if (piece.COLUMN + i < columns && board[piece.ROW, piece.COLUMN + i].GetPiece().IsTakenByAI())
-		// 		totalHorizontalAI++;
-		// 	//Check right Player
-		// 	else if (piece.COLUMN + i < columns && board[piece.ROW, piece.COLUMN + i].GetPiece().IsTakenByPlayer())
-		// 		totalHorizontalPlayer++;
-		// 	//Check left AI
-		// 	if (piece.COLUMN - i >= 0 && board[piece.ROW, piece.COLUMN - i].GetPiece().IsTakenByAI())
-		// 		totalHorizontalAI++;
-		// 	//Check left Player
-		// 	else if (piece.COLUMN - i >= 0 && board[piece.ROW, piece.COLUMN - i].GetPiece().IsTakenByPlayer())
-		// 		totalHorizontalPlayer++;
-
-		// 	//Check diagonally
-
-		// 	//Left-Down AI
-		// 	if (piece.ROW + i < rows && piece.COLUMN - i >= 0 && board[piece.ROW + i, piece.COLUMN - i].GetPiece().IsTakenByAI())
-		// 		totalDiagonalLeftAI++;
-		// 	//Left-Down Player
-		// 	if (piece.ROW + i < rows && piece.COLUMN - i >= 0 && board[piece.ROW + i, piece.COLUMN - i].GetPiece().IsTakenByPlayer())
-		// 		totalDiagonalLeftPlayer++;
-		// 	//Right-Up AI
-		// 	if (piece.ROW - i >= 0 && piece.COLUMN + i < columns && board[piece.ROW - i, piece.COLUMN + i].GetPiece().IsTakenByAI())
-		// 		totalDiagonalLeftAI++;
-		// 	//Right-Up Player
-		// 	if (piece.ROW - i >= 0 && piece.COLUMN + i < columns && board[piece.ROW - i, piece.COLUMN + i].GetPiece().IsTakenByPlayer())
-		// 		totalDiagonalLeftPlayer++;
-
-		// 	//Left-Up AI
-		// 	if (piece.ROW - i >= 0 && piece.COLUMN - i >= 0 && board[piece.ROW - i, piece.COLUMN - i].GetPiece().IsTakenByAI())
-		// 		totalDiagonalRightAI++;
-		// 	//Left-Up Player
-		// 	if (piece.ROW - i >= 0 && piece.COLUMN - i >= 0 && board[piece.ROW - i, piece.COLUMN - i].GetPiece().IsTakenByPlayer())
-		// 		totalDiagonalRightPlayer++;
-		// 	//Right-Down AI
-		// 	if (piece.ROW + i < rows && piece.COLUMN + i < columns && board[piece.ROW + i, piece.COLUMN + i].GetPiece().IsTakenByAI())
-		// 		totalDiagonalRightAI++;
-		// 	//Right-Down Player
-		// 	if (piece.ROW + i < rows && piece.COLUMN + i < columns && board[piece.ROW + i, piece.COLUMN + i].GetPiece().IsTakenByPlayer())
-		// 		totalDiagonalRightPlayer++;
-
-		// 	//Does not account for opposite directions added together?
-		// 	if (totalDiagonalRightAI == minToWin || totalDiagonalLeftAI == minToWin ||
-		// 		totalHorizontalAI == minToWin || totalVerticalAI == minToWin)
-		// 	{
-		// 		return true;
-		// 	}
-		// 	if (totalDiagonalRightPlayer == minToWin || totalDiagonalLeftPlayer == minToWin ||
-		// 		totalHorizontalPlayer == minToWin || totalVerticalPlayer == minToWin)
-		// 	{
-		// 		return true;
-		// 	}
-		// }
-
-		// if (totalDiagonalRightAI == minToWin || totalDiagonalLeftAI == minToWin ||
-		// 	totalHorizontalAI == minToWin || totalVerticalAI == minToWin)
-		// {
-		// 	return true;
-		// }
-		// if (totalDiagonalRightPlayer == minToWin || totalDiagonalLeftPlayer == minToWin ||
-		// 	totalHorizontalPlayer == minToWin || totalVerticalPlayer == minToWin)
-		// {
-		// 	return true;
-		// }
 		return false;
-    }
+	}
 
 	public int CheckWinConditionHeuristic()
 	{
@@ -709,67 +659,6 @@ public class NewBoard : MonoBehaviour
 					totalDiagonalRightPlayer++;
 			}
 		}
-
-		// for (int i = 1; i < minToWin; i++)
-		// {
-		// 	//Check vertically
-
-		// 	//Check down AI
-		// 	if (piece.ROW + i < rows && board[piece.ROW + i, piece.COLUMN].GetPiece().IsTakenByAI())
-		// 		totalVerticalAI++;
-		// 	//Check down Player
-		// 	if (piece.ROW + i < rows && board[piece.ROW + i, piece.COLUMN].GetPiece().IsTakenByPlayer())
-		// 		totalVerticalPlayer++;
-		// 	//Check up AI
-		// 	if (piece.ROW - i >= 0 && board[piece.ROW - i, piece.COLUMN].GetPiece().IsTakenByAI())
-		// 		totalVerticalAI++;
-		// 	//Check up Player
-		// 	if (piece.ROW - i >= 0 && board[piece.ROW - i, piece.COLUMN].GetPiece().IsTakenByPlayer())
-		// 		totalVerticalPlayer++;
-
-		// 	//Check horizontally
-
-		// 	//Check right AI
-		// 	if (piece.COLUMN + i < columns && board[piece.ROW, piece.COLUMN + i].GetPiece().IsTakenByAI())
-		// 		totalHorizontalAI++;
-		// 	//Check right Player
-		// 	if (piece.COLUMN + i < columns && board[piece.ROW, piece.COLUMN + i].GetPiece().IsTakenByPlayer())
-		// 		totalHorizontalPlayer++;
-		// 	//Check left AI
-		// 	if (piece.COLUMN - i >= 0 && board[piece.ROW, piece.COLUMN - i].GetPiece().IsTakenByAI())
-		// 		totalHorizontalAI++;
-		// 	//Check left Player
-		// 	if (piece.COLUMN - i >= 0 && board[piece.ROW, piece.COLUMN - i].GetPiece().IsTakenByPlayer())
-		// 		totalHorizontalPlayer++;
-
-		// 	//Check diagonally
-
-		// 	//Left-Down AI
-		// 	if (piece.ROW + i < rows && piece.COLUMN - i >= 0 && board[piece.ROW + i, piece.COLUMN - i].GetPiece().IsTakenByAI())
-		// 		totalDiagonalLeftAI++;
-		// 	//Left-Down Player
-		// 	if (piece.ROW + i < rows && piece.COLUMN - i >= 0 && board[piece.ROW + i, piece.COLUMN - i].GetPiece().IsTakenByPlayer())
-		// 		totalDiagonalLeftPlayer++;
-		// 	//Right-Up AI
-		// 	if (piece.ROW - i >= 0 && piece.COLUMN + i < columns && board[piece.ROW - i, piece.COLUMN + i].GetPiece().IsTakenByAI())
-		// 		totalDiagonalLeftAI++;
-		// 	//Right-Up Player
-		// 	if (piece.ROW - i >= 0 && piece.COLUMN + i < columns && board[piece.ROW - i, piece.COLUMN + i].GetPiece().IsTakenByPlayer())
-		// 		totalDiagonalLeftPlayer++;
-
-		// 	//Left-Up AI
-		// 	if (piece.ROW - i >= 0 && piece.COLUMN - i >= 0 && board[piece.ROW - i, piece.COLUMN - i].GetPiece().IsTakenByAI())
-		// 		totalDiagonalRightAI++;
-		// 	//Left-Up Player
-		// 	if (piece.ROW - i >= 0 && piece.COLUMN - i >= 0 && board[piece.ROW - i, piece.COLUMN - i].GetPiece().IsTakenByPlayer())
-		// 		totalDiagonalRightPlayer++;
-		// 	//Right-Down AI
-		// 	if (piece.ROW + i < rows && piece.COLUMN + i < columns && board[piece.ROW + i, piece.COLUMN + i].GetPiece().IsTakenByAI())
-		// 		totalDiagonalRightAI++;
-		// 	//Right-Down Player
-		// 	if (piece.ROW + i < rows && piece.COLUMN + i < columns && board[piece.ROW + i, piece.COLUMN + i].GetPiece().IsTakenByPlayer())
-		// 		totalDiagonalRightPlayer++;
-		// }
 
 		//Return the greatest amount or "score" of moves either by AI or by Player
 		int greatestAxisAI = Mathf.Max(totalVerticalAI, totalHorizontalAI);
@@ -1243,69 +1132,8 @@ public class NewBoard : MonoBehaviour
 			}
 		}
 
-		// for (int i = 1; i < minToWin; i++)
-		// {
-		// 	//Check vertically
-
-		// 	//Check down AI
-		// 	if (piece.ROW + i < rows && board[piece.ROW + i, piece.COLUMN].GetPiece().IsTakenByAI())
-		// 		totalVerticalAI++;
-		// 	//Check down Player
-		// 	if (piece.ROW + i < rows && board[piece.ROW + i, piece.COLUMN].GetPiece().IsTakenByPlayer())
-		// 		totalVerticalPlayer++;
-		// 	//Check up AI
-		// 	if (piece.ROW - i >= 0 && board[piece.ROW - i, piece.COLUMN].GetPiece().IsTakenByAI())
-		// 		totalVerticalAI++;
-		// 	//Check up Player
-		// 	if (piece.ROW - i >= 0 && board[piece.ROW - i, piece.COLUMN].GetPiece().IsTakenByPlayer())
-		// 		totalVerticalPlayer++;
-
-		// 	//Check horizontally
-
-		// 	//Check right AI
-		// 	if (piece.COLUMN + i < columns && board[piece.ROW, piece.COLUMN + i].GetPiece().IsTakenByAI())
-		// 		totalHorizontalAI++;
-		// 	//Check right Player
-		// 	if (piece.COLUMN + i < columns && board[piece.ROW, piece.COLUMN + i].GetPiece().IsTakenByPlayer())
-		// 		totalHorizontalPlayer++;
-		// 	//Check left AI
-		// 	if (piece.COLUMN - i >= 0 && board[piece.ROW, piece.COLUMN - i].GetPiece().IsTakenByAI())
-		// 		totalHorizontalAI++;
-		// 	//Check left Player
-		// 	if (piece.COLUMN - i >= 0 && board[piece.ROW, piece.COLUMN - i].GetPiece().IsTakenByPlayer())
-		// 		totalHorizontalPlayer++;
-
-		// 	//Check diagonally
-
-		// 	//Left-Down AI
-		// 	if (piece.ROW + i < rows && piece.COLUMN - i >= 0 && board[piece.ROW + i, piece.COLUMN - i].GetPiece().IsTakenByAI())
-		// 		totalDiagonalLeftAI++;
-		// 	//Left-Down Player
-		// 	if (piece.ROW + i < rows && piece.COLUMN - i >= 0 && board[piece.ROW + i, piece.COLUMN - i].GetPiece().IsTakenByPlayer())
-		// 		totalDiagonalLeftPlayer++;
-		// 	//Right-Up AI
-		// 	if (piece.ROW - i >= 0 && piece.COLUMN + i < columns && board[piece.ROW - i, piece.COLUMN + i].GetPiece().IsTakenByAI())
-		// 		totalDiagonalLeftAI++;
-		// 	//Right-Up Player
-		// 	if (piece.ROW - i >= 0 && piece.COLUMN + i < columns && board[piece.ROW - i, piece.COLUMN + i].GetPiece().IsTakenByPlayer())
-		// 		totalDiagonalLeftPlayer++;
-
-		// 	//Left-Up AI
-		// 	if (piece.ROW - i >= 0 && piece.COLUMN - i >= 0 && board[piece.ROW - i, piece.COLUMN - i].GetPiece().IsTakenByAI())
-		// 		totalDiagonalRightAI++;
-		// 	//Left-Up Player
-		// 	if (piece.ROW - i >= 0 && piece.COLUMN - i >= 0 && board[piece.ROW - i, piece.COLUMN - i].GetPiece().IsTakenByPlayer())
-		// 		totalDiagonalRightPlayer++;
-		// 	//Right-Down AI
-		// 	if (piece.ROW + i < rows && piece.COLUMN + i < columns && board[piece.ROW + i, piece.COLUMN + i].GetPiece().IsTakenByAI())
-		// 		totalDiagonalRightAI++;
-		// 	//Right-Down Player
-		// 	if (piece.ROW + i < rows && piece.COLUMN + i < columns && board[piece.ROW + i, piece.COLUMN + i].GetPiece().IsTakenByPlayer())
-		// 		totalDiagonalRightPlayer++;
-		// }
-
 		//Return the greatest amount or "score" of moves either by AI or by Player
-		print("HEURISTIC AI: Vertical AI: " + totalVerticalAI + ". Horizontal AI: " + totalHorizontalAI + 
+		print("HEURISTIC AI: Vertical AI: " + totalVerticalAI + ". Horizontal AI: " + totalHorizontalAI +
 			". Diagonal Right AI: " + totalDiagonalRightAI + ". Diagonal Left AI: " + totalDiagonalLeftAI);
 
 		print("HEURISTIC PLAYER: Vertical Player: " + totalVerticalPlayer + ". Horizontal Player: " + totalHorizontalPlayer +
