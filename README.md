@@ -1,13 +1,19 @@
 # AI_Seeking_Tic-Tac-Toe
- A small game that came as a result of an AI course, a quite modular tic-tac-toe game with a Minimax-AI
- 
- This small game project is more for showing my capability to use an AI algorithm to make a simple Tic-Tac-Toe AI, moreso than actually being a game. As such the goal of this small game is simply to try to win against the Minimax AI in a few rounds of Tic-Tac-Toe.
+ A small game that came as a result of an AI course, a more modular version of the classic tic-tac-toe game, with a Minimax-AI to play against!
 
-The player is marked with blue circles, the AI is marked with red circles. The following image shows this as well as a 4x4 tic-tac-toe board.\
-![Game example](/images/game_example_1.png)
+The player is marked with blue circles and the AI is marked with red crosses. I've also given the player the ability to customize the game to a certain degree. Customizable settings include:
+* Amount of rows.
+* Amount of Columns.
+* Minimum amount of tiles in a row needed to win.
+* How far down the "game-tree" the minimax AI can search for it's next move.
+* If the minimax AI should play as a "tryhard", or if it should be possible for the AI to make less optimal moves every now and again (to give the player a bigger chance of winning).
 
-The game is separated into two main components, the mark-placer which has the responsibility of of placing markers and handling the advancement of turns.\
-![Mark Placer](/images/mark_placer.png)
+The settings can be seen with the following screenshot.
 
-And the board, which has been implemented with a quite high degree of modularity in mind...simply because i wasn't allowed to make a simple 3x3 tic-tac-toe for the AI course.\
-![Board](/images/board.png)
+![Settings](/images/TicTacToe_Minimax_Settings.png)
+
+The following gif illustrates the game in action.
+
+![Game example](/images/TicTacToe_Minimax_Example.gif)
+
+I've made a unitypackage ready for download, as well as a playable executable inside a .zip-file.
